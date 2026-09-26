@@ -36,3 +36,8 @@ write your own), and read the course package (`README.md`, `PREWORK.md`, `lab1/`
 The workflow `tier-a` runs on every push and on demand (Actions tab, "Run workflow"). It needs no secrets. The
 job is red when a Core spec fails; the step summary shows which checks, and `report.json` is attached as an
 artifact.
+
+Expect it to be red from your first push until your service builds and answers: the untouched template fails
+every Core spec (no `Dockerfile`, placeholder text in `DECISIONS.md`), and so does the template repository
+itself. A red job with a Core table in the summary is your work in progress; a red job whose summary says "No
+report.json was produced" means the checker itself stopped, and the job log says why.
