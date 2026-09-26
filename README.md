@@ -38,6 +38,11 @@ job is red when a Core spec fails; the step summary shows which checks, and `rep
 artifact.
 
 Expect it to be red from your first push until your service builds and answers: the untouched template fails
-every Core spec (no `Dockerfile`, placeholder text in `DECISIONS.md`), and so does the template repository
-itself. A red job with a Core table in the summary is your work in progress; a red job whose summary says "No
-report.json was produced" means the checker itself stopped, and the job log says why.
+every Core spec (no `Dockerfile`, placeholder text in `DECISIONS.md`). A red job with a Core table in the
+summary is your work in progress; a red job whose summary says "No report.json was produced" means the checker
+itself stopped, and the job log says why.
+
+The last step, "Course template only", is always skipped here. It runs on the main branch of the course
+template repository, which holds no service, and turns the job green there only when the checker fails that
+empty skeleton exactly as expected (exit 1, a complete report, no spec passed), so a red run of the template
+means the checker or the workflow broke.

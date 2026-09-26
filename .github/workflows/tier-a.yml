@@ -17,6 +17,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # "true" only on the main branch of the course template, which holds no service: there the checker must
+      # fail every Core spec, and the job is green when it fails exactly that way. Always "false" in your repository.
+      TEMPLATE_SKELETON: ${{ github.repository == 'swasik/itsm-2026-template' && github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
@@ -38,10 +42,13 @@ jobs:
           IMAGE: ${{ steps.cfg.outputs.image }}
         run: |
           rm -f report.json
+          rc=0
           docker run --rm \
             -v "$PWD:$PWD" -w "$PWD" \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            "$IMAGE" verify "$LAB" --json report.json
+            "$IMAGE" verify "$LAB" --json report.json || rc=$?
+          echo "exit=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
 
       - name: Upload report.json
         if: always()
@@ -86,7 +93,36 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail the job when the checker did not exit 0
-        if: steps.verify.outcome != 'success'
+        if: steps.verify.outcome != 'success' && env.TEMPLATE_SKELETON != 'true'
         run: |
           echo "itsmlab verify did not exit 0: a Core spec failed or the checker hit an error. See the step summary." >&2
           exit 1
+
+      - name: Course template only - confirm the empty skeleton failed as expected
+        if: env.TEMPLATE_SKELETON == 'true'
+        env:
+          LAB: ${{ steps.cfg.outputs.lab }}
+          RC: ${{ steps.verify.outputs.exit }}
+        run: |
+          problems="$(
+            if [ "$RC" != "1" ]; then echo "the checker exited ${RC:-without a code}, expected 1 (Core failed)"; fi
+            if [ ! -f report.json ]; then echo "no report.json"
+            else jq -r --argjson lab "$LAB" '
+                (if .mode != "tier-a" then "mode is \(.mode), expected tier-a" else empty end),
+                (if .lab != $lab then "lab is \(.lab), expected \($lab)" else empty end),
+                (if ([.specs[] | select(.bundle == "core")] | length) == 0 then "the report has no Core specs" else empty end),
+                (.specs[] | select(.status == "pass") | "\(.id) passes on a repository with no service")
+              ' report.json || echo "report.json is not a valid report"
+            fi
+          )"
+          {
+            echo "## Course template"
+            echo
+            if [ -z "$problems" ]; then
+              echo "Expected result: the empty skeleton failed every Core spec (exit 1, a complete report, no spec passed)."
+            else
+              echo "Unexpected result on the empty skeleton:"
+              printf '%s\n' "$problems" | sed 's/^/- /'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$problems" ]; then printf '%s\n' "$problems" >&2; exit 1; fi
