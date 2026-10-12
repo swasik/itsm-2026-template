@@ -19,7 +19,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45   # Lab 8: `verify 8` (two Ollamas, two promptfoo runs) takes 20-35 minutes on a runner
     env:
       # "true" only on the main branch of the course template, which holds no service: there the checker must
       # fail every Core spec, and the job is green when it fails exactly that way. Always "false" in your repository.
